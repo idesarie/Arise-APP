@@ -113,7 +113,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
       volume: volume,
       assetAudioPath: assetAudio,
       notificationTitle: 'Arise',
-      notificationBody: 'Your alarm is ringing', // 'Your alarm ($id) is ringing'
+      notificationBody: 'Your alarm is ringing',
       enableNotificationOnKill: Platform.isIOS,
     );
     return alarmSettings;

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:alarm/alarm.dart';
 import 'package:arise_alarm_app/pages/edit_alarm.dart';
 import 'package:arise_alarm_app/pages/ring_screen.dart';
-import 'package:arise_alarm_app/pages/shortcut_button.dart';
 import 'package:arise_alarm_app/utils/tile.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -50,18 +49,6 @@ class _AlarmPageState extends State<AlarmPage> {
       );
     }
   }
-
-  // Future<void> checkAndroidExternalStoragePermission() async {
-  //   final status = await Permission.storage.status;
-  //   if (status.isDenied) {
-  //     alarmPrint('Requesting external storage permission...');
-  //     final res = await Permission.storage.request();
-  //     alarmPrint(
-  //       'External storage permission ${res.isGranted ? '' : 'not'} granted',
-  //     );
-  //   }
-  // }
-
 
   Future<void> navigateToRingScreen(AlarmSettings alarmSettings) async {
     await Navigator.push(
@@ -137,9 +124,7 @@ class _AlarmPageState extends State<AlarmPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            //ExampleAlarmHomeShortcutButton(refreshAlarms: loadAlarms),
             FloatingActionButton(
-              
               onPressed: () => navigateToAlarmScreen(null),
               child: const Icon(Icons.add, size: 33),
             ),
