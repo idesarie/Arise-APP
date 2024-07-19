@@ -1,8 +1,12 @@
 
+import 'package:alarm/alarm.dart';
 import 'package:arise_alarm_app/utils/splashscreen.dart';
 import 'package:flutter/material.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Alarm.init();
   runApp(const MyApp());
 }
 
