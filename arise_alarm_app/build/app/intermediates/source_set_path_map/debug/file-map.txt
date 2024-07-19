@@ -1,0 +1,16 @@
+com.example.arise_alarm_app-jetified-window-1.0.0-beta04-0 C:\Users\63919\.gradle\caches\transforms-3\032f4dff274e516110d9363a9793a3e3\transformed\jetified-window-1.0.0-beta04\res
+com.example.arise_alarm_app-jetified-window-java-1.0.0-beta04-1 C:\Users\63919\.gradle\caches\transforms-3\142c24f2530665bb6deb4123ab140714\transformed\jetified-window-java-1.0.0-beta04\res
+com.example.arise_alarm_app-core-1.6.0-2 C:\Users\63919\.gradle\caches\transforms-3\2579a7de00054bf46a8dbc332552f622\transformed\core-1.6.0\res
+com.example.arise_alarm_app-jetified-annotation-experimental-1.1.0-3 C:\Users\63919\.gradle\caches\transforms-3\3f96ca76068ab400b494bc7d541ee256\transformed\jetified-annotation-experimental-1.1.0\res
+com.example.arise_alarm_app-debug-4 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\android\app\src\debug\res
+com.example.arise_alarm_app-main-5 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\android\app\src\main\res
+com.example.arise_alarm_app-packaged_res-6 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\build\alarm\intermediates\packaged_res\debug
+com.example.arise_alarm_app-pngs-7 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\build\app\generated\res\pngs\debug
+com.example.arise_alarm_app-resValues-8 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\build\app\generated\res\resValues\debug
+com.example.arise_alarm_app-rs-9 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\build\app\generated\res\rs\debug
+com.example.arise_alarm_app-mergeDebugResources-10 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\build\app\intermediates\incremental\debug\mergeDebugResources\merged.dir
+com.example.arise_alarm_app-mergeDebugResources-11 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\build\app\intermediates\incremental\debug\mergeDebugResources\stripped.dir
+com.example.arise_alarm_app-merged_res-12 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\build\app\intermediates\merged_res\debug
+com.example.arise_alarm_app-packaged_res-13 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\build\flutter_fgbg\intermediates\packaged_res\debug
+com.example.arise_alarm_app-packaged_res-14 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\build\permission_handler_android\intermediates\packaged_res\debug
+com.example.arise_alarm_app-packaged_res-15 C:\Users\63919\Cerebro\Arise-APP\arise_alarm_app\build\shared_preferences_android\intermediates\packaged_res\debug

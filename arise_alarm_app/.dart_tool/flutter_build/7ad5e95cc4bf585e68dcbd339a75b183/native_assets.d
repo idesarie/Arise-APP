@@ -1,0 +1,1 @@
+ C:\\Users\\63919\\Cerebro\\Arise-APP\\arise_alarm_app\\.dart_tool\\flutter_build\\7ad5e95cc4bf585e68dcbd339a75b183\\native_assets.yaml: 
