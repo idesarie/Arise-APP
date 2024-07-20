@@ -2,7 +2,10 @@ import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 
 class AlarmRingScreen extends StatelessWidget {
-  const AlarmRingScreen({required this.alarmSettings, super.key});
+  const AlarmRingScreen({
+    required this.alarmSettings,
+    super.key,
+  });
 
   final AlarmSettings alarmSettings;
 
@@ -14,7 +17,7 @@ class AlarmRingScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             Text(
-              'You alarm is ringing...', //  'You alarm (${alarmSettings.id}) is ringing...',
+              'Your alarm is ringing...',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const Text('🔔', style: TextStyle(fontSize: 50)),
@@ -24,15 +27,17 @@ class AlarmRingScreen extends StatelessWidget {
                 RawMaterialButton(
                   onPressed: () {
                     final now = DateTime.now();
+                    final snoozeTime = DateTime(
+                      now.year,
+                      now.month,
+                      now.day,
+                      now.hour,
+                      now.minute,
+                    ).add(const Duration(minutes: 1));
+
                     Alarm.set(
                       alarmSettings: alarmSettings.copyWith(
-                        dateTime: DateTime(
-                          now.year,
-                          now.month,
-                          now.day,
-                          now.hour,
-                          now.minute,
-                        ).add(const Duration(minutes: 1)),
+                        dateTime: snoozeTime,
                       ),
                     ).then((_) => Navigator.pop(context));
                   },
@@ -43,8 +48,9 @@ class AlarmRingScreen extends StatelessWidget {
                 ),
                 RawMaterialButton(
                   onPressed: () {
-                    Alarm.stop(alarmSettings.id)
-                        .then((_) => Navigator.pop(context));
+                    Alarm.stop(alarmSettings.id).then((_) {
+                      Navigator.pop(context);
+                    });
                   },
                   child: Text(
                     'Stop',
