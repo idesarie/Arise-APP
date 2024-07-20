@@ -1,13 +1,19 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:alarm/alarm.dart';
 import 'package:arise_alarm_app/pages/sound_selection.dart';
+import 'package:arise_alarm_app/wrapper/wrap_alarm_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AlarmEditScreen extends StatefulWidget {
-  const AlarmEditScreen({super.key, this.alarmSettings});
+  const AlarmEditScreen({
+    super.key,
+    this.customAlarmSettings,
+  });
 
-  final AlarmSettings? alarmSettings;
+  final CustomAlarmSettings? customAlarmSettings;
 
   @override
   State<AlarmEditScreen> createState() => _AlarmEditScreenState();
@@ -15,15 +21,13 @@ class AlarmEditScreen extends StatefulWidget {
 
 class _AlarmEditScreenState extends State<AlarmEditScreen> {
   bool loading = false;
-
-  late bool creating;
   late DateTime selectedDateTime;
   late bool loopAudio;
   late bool vibrate;
-  late double volume;  // Make volume non-nullable
+  late double volume;
   late String assetAudio;
+  late String label;
 
-  // List of sound options
   final List<Map<String, String>> soundOptions = [
     {'value': 'assets/sounds/marimba.mp3', 'label': 'Marimba'},
     {'value': 'assets/sounds/nokia.mp3', 'label': 'Nokia'},
@@ -42,25 +46,29 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   @override
   void initState() {
     super.initState();
-    creating = widget.alarmSettings == null;
 
-    if (creating) {
+    if (widget.customAlarmSettings == null) {
+      // Creating a new alarm
       selectedDateTime = DateTime.now().add(const Duration(minutes: 1));
       selectedDateTime = selectedDateTime.copyWith(second: 0, millisecond: 0);
       loopAudio = true;
       vibrate = true;
-      volume = 0.5;  // Set a default volume
+      volume = 0.5;
       assetAudio = 'assets/sounds/marimba.mp3';
+      label = '';
     } else {
-      selectedDateTime = widget.alarmSettings!.dateTime;
-      loopAudio = widget.alarmSettings!.loopAudio;
-      vibrate = widget.alarmSettings!.vibrate;
-      volume = widget.alarmSettings!.volume ?? 0.5; 
-      assetAudio = widget.alarmSettings!.assetAudioPath;
+      // Editing an existing alarm
+      final settings = widget.customAlarmSettings!.alarmSettings;
+      selectedDateTime = settings.dateTime;
+      loopAudio = settings.loopAudio;
+      vibrate = settings.vibrate;
+      volume = settings.volume ?? 0.5;
+      assetAudio = settings.assetAudioPath;
+      label = widget.customAlarmSettings!.label;
     }
   }
 
-  String getDay() {
+   String getDay() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final difference = selectedDateTime.difference(today).inDays;
@@ -76,7 +84,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
         return 'In $difference days';
     }
   }
-
+  
   Future<void> pickTime() async {
     final res = await showTimePicker(
       initialTime: TimeOfDay.fromDateTime(selectedDateTime),
@@ -100,41 +108,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     }
   }
 
-  AlarmSettings buildAlarmSettings() {
-    final id = creating
-        ? DateTime.now().millisecondsSinceEpoch % 10000 + 1
-        : widget.alarmSettings!.id;
-
-    final alarmSettings = AlarmSettings(
-      id: id,
-      dateTime: selectedDateTime,
-      loopAudio: loopAudio,
-      vibrate: vibrate,
-      volume: volume,
-      assetAudioPath: assetAudio,
-      notificationTitle: 'Arise',
-      notificationBody: 'Your alarm is ringing',
-      enableNotificationOnKill: Platform.isIOS,
-    );
-    return alarmSettings;
-  }
-
-  void saveAlarm() {
-    if (loading) return;
-    setState(() => loading = true);
-    Alarm.set(alarmSettings: buildAlarmSettings()).then((res) {
-      if (res) Navigator.pop(context, true);
-      setState(() => loading = false);
-    });
-  }
-
-  void deleteAlarm() {
-    Alarm.stop(widget.alarmSettings!.id).then((res) {
-      if (res) Navigator.pop(context, true);
-    });
-  }
-
-  void _selectSound() async {
+  Future<void> _selectSound() async {
     final selectedSound = await Navigator.push<String>(
       context,
       MaterialPageRoute(
@@ -155,10 +129,99 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     }
   }
 
+  AlarmSettings buildAlarmSettings() {
+    final id = widget.customAlarmSettings?.alarmSettings.id ??
+               DateTime.now().millisecondsSinceEpoch % 10000 + 1;
+
+    final alarmSettings = AlarmSettings(
+      id: id,
+      dateTime: selectedDateTime,
+      loopAudio: loopAudio,
+      vibrate: vibrate,
+      volume: volume,
+      assetAudioPath: assetAudio,
+      notificationTitle: 'Arise',
+      notificationBody: 'Your alarm is ringing',
+      enableNotificationOnKill: Platform.isIOS,
+    );
+    return alarmSettings;
+  }
+
+  Future<void> saveAlarm() async {
+    if (loading) return;
+    setState(() => loading = true);
+    final settings = buildAlarmSettings();
+
+    final customSettings = CustomAlarmSettings(
+      alarmSettings: settings,
+      label: label,
+      isActive: true,
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    final alarmData = customAlarmSettingsToMap(customSettings);
+    if (widget.customAlarmSettings != null) {
+      await prefs.remove('alarm_${widget.customAlarmSettings!.alarmSettings.id}');
+    }
+
+    // Save new alarm to SP
+    await prefs.setString('alarm_${customSettings.alarmSettings.id}', jsonEncode(alarmData));
+
+    // Stop existing alarm if it's being updated
+    if (widget.customAlarmSettings != null) {
+      Alarm.stop(widget.customAlarmSettings!.alarmSettings.id).then((res) {
+        if (res) {
+          // Set the new alarm
+          Alarm.set(alarmSettings: settings).then((res) {
+            if (res) Navigator.pop(context, true);
+            setState(() => loading = false);
+          });
+        } else {
+          setState(() => loading = false);
+        }
+      });
+    } else {
+      // Set new alarm if it's being created
+      Alarm.set(alarmSettings: settings).then((res) {
+        if (res) Navigator.pop(context, true);
+        setState(() => loading = false);
+      });
+    }
+  }
+
+//Detlete alarm
+  Future<void> deleteAlarm() async {
+    if (widget.customAlarmSettings != null) {
+      final id = widget.customAlarmSettings!.alarmSettings.id;
+
+      Alarm.stop(id).then((res) async {
+        if (res) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('alarm_$id');
+          Navigator.pop(context, true);
+        }
+      });
+    }
+  }
+
+   Map<String, dynamic> customAlarmSettingsToMap(CustomAlarmSettings customSettings) {
+    return {
+      'id': customSettings.alarmSettings.id,
+      'dateTime': customSettings.alarmSettings.dateTime.toIso8601String(),
+      'loopAudio': customSettings.alarmSettings.loopAudio,
+      'vibrate': customSettings.alarmSettings.vibrate,
+      'volume': customSettings.alarmSettings.volume,
+      'assetAudioPath': customSettings.alarmSettings.assetAudioPath,
+      'label': customSettings.label,
+      'isActive': customSettings.isActive,
+    };
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: Text(widget.customAlarmSettings == null ? 'Add Alarm' : 'Edit Alarm')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
@@ -185,6 +248,15 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                         .copyWith(color: Colors.blueAccent),
                   ),
                 ),
+              ),
+              TextField(
+                decoration: InputDecoration(labelText: 'Alarm Label'),
+                onChanged: (value) {
+                  setState(() {
+                    label = value;
+                  });
+                },
+                controller: TextEditingController(text: label),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -216,7 +288,6 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                   ],
                 ),
               ),
-              // Vibrate icon and volume slider in one row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -263,7 +334,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                             .copyWith(color: Colors.blueAccent),
                       ),
               ),
-              if (!creating)
+              if (widget.customAlarmSettings != null)
                 TextButton(
                   onPressed: deleteAlarm,
                   child: Text(
@@ -271,7 +342,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                     style: Theme.of(context)
                         .textTheme
                         .titleMedium!
-                        .copyWith(color: const Color.fromARGB(255, 255, 255, 255)),
+                        .copyWith(color: Colors.redAccent),
                   ),
                 ),
               const SizedBox(),

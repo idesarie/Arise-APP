@@ -1,11 +1,15 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:alarm/alarm.dart';
 import 'package:arise_alarm_app/pages/edit_alarm.dart';
 import 'package:arise_alarm_app/pages/ring_screen.dart';
+import 'package:arise_alarm_app/utils/components/filter_popup_menu.dart';
 import 'package:arise_alarm_app/utils/tile.dart';
+import 'package:arise_alarm_app/wrapper/wrap_alarm_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AlarmPage extends StatefulWidget {
   const AlarmPage({super.key});
@@ -15,8 +19,8 @@ class AlarmPage extends StatefulWidget {
 }
 
 class _AlarmPageState extends State<AlarmPage> {
-  late List<AlarmSettings> alarms;
-
+  late List<CustomAlarmSettings> customAlarms = [];
+  late List<CustomAlarmSettings> allAlarms = [];
   static StreamSubscription<AlarmSettings>? subscription;
 
   @override
@@ -30,23 +34,63 @@ class _AlarmPageState extends State<AlarmPage> {
     subscription ??= Alarm.ringStream.stream.listen(navigateToRingScreen);
   }
 
-  void loadAlarms() {
+  Future<void> loadAlarms() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((key) => key.startsWith('alarm_')).toList();
+
+    final loadedAlarms = <CustomAlarmSettings>[];
+    for (final key in keys) {
+      final jsonString = prefs.getString(key);
+      if (jsonString != null) {
+        final alarmData = jsonDecode(jsonString);
+        DateTime dateTime = DateTime.parse(alarmData['dateTime']);
+
+        if (dateTime.isBefore(DateTime.now())) {
+          // Reschedule alarm to the same time on the next day
+          dateTime = dateTime.add(Duration(days: 1));
+        }
+
+        final alarmSettings = AlarmSettings(
+          id: alarmData['id'],
+          dateTime: dateTime,
+          loopAudio: alarmData['loopAudio'],
+          vibrate: alarmData['vibrate'],
+          volume: alarmData['volume'],
+          assetAudioPath: alarmData['assetAudioPath'],
+          notificationTitle: 'Alarm',
+          notificationBody: 'Your alarm is ringing',
+        );
+
+        final customAlarm = CustomAlarmSettings(
+          alarmSettings: alarmSettings,
+          label: alarmData['label'],
+          isActive: alarmData['isActive'],
+        );
+
+        loadedAlarms.add(customAlarm);
+      }
+    }
+
     setState(() {
-      alarms = Alarm.getAlarms();
-      alarms.sort((a, b) => a.dateTime.isBefore(b.dateTime) ? 0 : 1);
+      allAlarms = loadedAlarms;
+      customAlarms = List.from(allAlarms);
+      customAlarms.sort((a, b) => a.alarmSettings.dateTime.compareTo(b.alarmSettings.dateTime));
     });
   }
-
-//permisssions
 
   Future<void> checkAndroidNotificationPermission() async {
     final status = await Permission.notification.status;
     if (status.isDenied) {
-      alarmPrint('Requesting notification permission...');
       final res = await Permission.notification.request();
-      alarmPrint(
-        'Notification permission ${res.isGranted ? '' : 'not '}granted',
-      );
+      print('Notification permission ${res.isGranted ? '' : 'not '}granted');
+    }
+  }
+
+  Future<void> checkAndroidScheduleExactAlarmPermission() async {
+    final status = await Permission.scheduleExactAlarm.status;
+    if (status.isDenied) {
+      final res = await Permission.scheduleExactAlarm.request();
+      print('Schedule exact alarm permission ${res.isGranted ? '' : 'not'} granted');
     }
   }
 
@@ -54,34 +98,85 @@ class _AlarmPageState extends State<AlarmPage> {
     await Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (context) =>
-            AlarmRingScreen(alarmSettings: alarmSettings),
+        builder: (context) => AlarmRingScreen(
+          alarmSettings: alarmSettings,
+        ),
       ),
     );
     loadAlarms();
   }
 
-  Future<void> navigateToAlarmScreen(AlarmSettings? settings) async {
-   final res = await Navigator.push<bool?>(
-    context,
-    MaterialPageRoute(
-      builder: (context) => AlarmEditScreen(alarmSettings: settings),
-    ),
-  );
-    if (res != null && res == true) loadAlarms();
+  Future<void> navigateToAlarmScreen(CustomAlarmSettings? customSettings) async {
+    final res = await Navigator.push<bool?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AlarmEditScreen(customAlarmSettings: customSettings),
+      ),
+    );
+    if (res != null && res == true) {
+      // Debugging: Print current alarm settings after update
+      if (customSettings != null) {
+        print("Updated alarm settings: ${customSettings.alarmSettings.dateTime}");
+      }
+      loadAlarms();
+    }
   }
 
+  void filterAlarms(String choice) {
+    setState(() {
+      if (choice == 'Default') {
+        customAlarms = List.from(allAlarms);
+      } else if (choice == 'Active') {
+        customAlarms = allAlarms.where((alarm) => alarm.isActive).toList();
+      }
+      customAlarms.sort((a, b) => a.alarmSettings.dateTime.compareTo(b.alarmSettings.dateTime));
+    });
+  }
 
-  Future<void> checkAndroidScheduleExactAlarmPermission() async {
-    final status = await Permission.scheduleExactAlarm.status;
-    alarmPrint('Schedule exact alarm permission: $status.');
-    if (status.isDenied) {
-      alarmPrint('Requesting schedule exact alarm permission...');
-      final res = await Permission.scheduleExactAlarm.request();
-      alarmPrint(
-        'Schedule exact alarm permission ${res.isGranted ? '' : 'not'} granted',
-      );
+  void toggleAlarmSwitch(CustomAlarmSettings customAlarm, bool isActive) async {
+    AlarmSettings alarmSettings = customAlarm.alarmSettings;
+    if (isActive) {
+      if (alarmSettings.dateTime.isBefore(DateTime.now())) {
+        alarmSettings = AlarmSettings(
+          id: alarmSettings.id,
+          dateTime: alarmSettings.dateTime.add(Duration(days: 1)),
+          loopAudio: alarmSettings.loopAudio,
+          vibrate: alarmSettings.vibrate,
+          volume: alarmSettings.volume,
+          assetAudioPath: alarmSettings.assetAudioPath,
+          notificationTitle: alarmSettings.notificationTitle,
+          notificationBody: alarmSettings.notificationBody,
+        );
+      }
+
+      final success = await Alarm.set(alarmSettings: alarmSettings);
+      if (success) {
+        print("Alarm set successfully.");
+      } else {
+        print("Failed to set the alarm.");
+      }
+    } else {
+      final success = await Alarm.stop(alarmSettings.id);
+      if (success) {
+        print("Alarm stopped successfully.");
+      } else {
+        print("Failed to stop the alarm.");
+      }
     }
+    // =====================================================
+    //
+    // Update SharedPreferences with the latest settings
+    //
+    // =====================================================
+
+    final prefs = await SharedPreferences.getInstance();
+    final alarmData = customAlarmSettingsToMap(CustomAlarmSettings(
+      alarmSettings: alarmSettings,
+      label: customAlarm.label,
+      isActive: isActive,
+    ));
+    await prefs.setString('alarm_${alarmSettings.id}', jsonEncode(alarmData));
+    loadAlarms();
   }
 
   @override
@@ -93,21 +188,34 @@ class _AlarmPageState extends State<AlarmPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        actions: [
+          FilterPopupMenu(
+            onSelected: filterAlarms,
+            options: ['Default', 'Active'],
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: alarms.isNotEmpty
+        child: customAlarms.isNotEmpty
             ? ListView.separated(
-                itemCount: alarms.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemCount: customAlarms.length,
+                separatorBuilder: (context, index) => SizedBox(height: 2),
                 itemBuilder: (context, index) {
+                  final alarm = customAlarms[index];
                   return AlarmTile(
-                    key: Key(alarms[index].id.toString()),
+                    key: Key(alarm.alarmSettings.id.toString()),
                     title: TimeOfDay(
-                      hour: alarms[index].dateTime.hour,
-                      minute: alarms[index].dateTime.minute,
+                      hour: alarm.alarmSettings.dateTime.hour,
+                      minute: alarm.alarmSettings.dateTime.minute,
                     ).format(context),
-                    onPressed: () => navigateToAlarmScreen(alarms[index]),
-                    onDismissed: () {
-                      Alarm.stop(alarms[index].id).then((_) => loadAlarms());
+                    isSwitched: alarm.isActive,
+                    onToggleSwitch: (isActive) => toggleAlarmSwitch(alarm, isActive),
+                    onPressed: () => navigateToAlarmScreen(alarm),
+                    onDismissed: () async {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.remove('alarm_${alarm.alarmSettings.id}');
+                      loadAlarms();
                     },
                   );
                 },
@@ -125,6 +233,7 @@ class _AlarmPageState extends State<AlarmPage> {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             FloatingActionButton(
+              shape: CircleBorder(side: BorderSide.none, eccentricity: 0.0),
               onPressed: () => navigateToAlarmScreen(null),
               child: const Icon(Icons.add, size: 33),
             ),
@@ -133,5 +242,18 @@ class _AlarmPageState extends State<AlarmPage> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
+  }
+
+  Map<String, dynamic> customAlarmSettingsToMap(CustomAlarmSettings customSettings) {
+    return {
+      'id': customSettings.alarmSettings.id,
+      'dateTime': customSettings.alarmSettings.dateTime.toIso8601String(),
+      'loopAudio': customSettings.alarmSettings.loopAudio,
+      'vibrate': customSettings.alarmSettings.vibrate,
+      'volume': customSettings.alarmSettings.volume,
+      'assetAudioPath': customSettings.alarmSettings.assetAudioPath,
+      'label': customSettings.label,
+      'isActive': customSettings.isActive,
+    };
   }
 }

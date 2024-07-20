@@ -4,11 +4,15 @@ class AlarmTile extends StatefulWidget {
   const AlarmTile({
     required this.title,
     required this.onPressed,
+    required this.isSwitched,
+    required this.onToggleSwitch,
     super.key,
     this.onDismissed,
   });
 
   final String title;
+  final bool isSwitched;
+  final void Function(bool) onToggleSwitch;
   final void Function() onPressed;
   final void Function()? onDismissed;
 
@@ -17,13 +21,19 @@ class AlarmTile extends StatefulWidget {
 }
 
 class _AlarmTileState extends State<AlarmTile> {
+  late bool _isSwitched;
 
-  bool _isSwitched = true;
+  @override
+  void initState() {
+    super.initState();
+    _isSwitched = widget.isSwitched;
+  }
 
   void _toggleSwitch(bool value) {
     setState(() {
       _isSwitched = value;
     });
+    widget.onToggleSwitch(value);
   }
 
   @override
