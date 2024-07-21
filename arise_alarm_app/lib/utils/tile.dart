@@ -6,12 +6,16 @@ class AlarmTile extends StatefulWidget {
     required this.onPressed,
     required this.isSwitched,
     required this.onToggleSwitch,
+    required this.label,
+    required this.dateTime,
     super.key,
     this.onDismissed,
   });
 
   final String title;
   final bool isSwitched;
+  final String label;
+  final DateTime dateTime;
   final void Function(bool) onToggleSwitch;
   final void Function() onPressed;
   final void Function()? onDismissed;
@@ -36,6 +40,23 @@ class _AlarmTileState extends State<AlarmTile> {
     widget.onToggleSwitch(value);
   }
 
+  String _getDayLabel(DateTime dateTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final difference = dateTime.difference(today).inDays;
+
+    switch (difference) {
+      case 0:
+        return 'Today';
+      case 1:
+        return 'Tomorrow';
+      case 2:
+        return 'After tomorrow';
+      default:
+        return 'In $difference days';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dismissible(
@@ -44,7 +65,7 @@ class _AlarmTileState extends State<AlarmTile> {
           ? DismissDirection.endToStart
           : DismissDirection.none,
       background: Container(
-        color: Colors.redAccent,
+        color: const Color.fromARGB(255, 113, 0, 0),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 30),
         child: const Icon(
@@ -60,11 +81,31 @@ class _AlarmTileState extends State<AlarmTile> {
         child: ListTile(
           contentPadding: const EdgeInsets.all(16),
           title: Text(
-            widget.title,
+            _getDayLabel(widget.dateTime),
             style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
             ),
+          ),
+          subtitle: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                widget.label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
           ),
           trailing: Switch(
             value: _isSwitched,
