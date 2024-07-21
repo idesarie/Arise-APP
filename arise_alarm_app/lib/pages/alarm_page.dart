@@ -178,6 +178,7 @@ class _AlarmPageState extends State<AlarmPage> {
     await prefs.setString('alarm_${alarmSettings.id}', jsonEncode(alarmData));
     loadAlarms();
   }
+  
 
   @override
   void dispose() {
@@ -212,6 +213,8 @@ class _AlarmPageState extends State<AlarmPage> {
                     isSwitched: alarm.isActive,
                     onToggleSwitch: (isActive) => toggleAlarmSwitch(alarm, isActive),
                     onPressed: () => navigateToAlarmScreen(alarm),
+                    label: alarm.label,
+                    dateTime: alarm.alarmSettings.dateTime,
                     onDismissed: () async {
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.remove('alarm_${alarm.alarmSettings.id}');
@@ -243,6 +246,9 @@ class _AlarmPageState extends State<AlarmPage> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
+
+
+
 
   Map<String, dynamic> customAlarmSettingsToMap(CustomAlarmSettings customSettings) {
     return {

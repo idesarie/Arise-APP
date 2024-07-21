@@ -26,7 +26,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   late bool vibrate;
   late double volume;
   late String assetAudio;
-  late String label;
+  late String label = 'Alarm';
 
   final List<Map<String, String>> soundOptions = [
     {'value': 'assets/sounds/marimba.mp3', 'label': 'Marimba'},
@@ -150,6 +150,9 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   Future<void> saveAlarm() async {
     if (loading) return;
     setState(() => loading = true);
+    if (label.isEmpty) {
+    label = 'Alarm';
+  }
     final settings = buildAlarmSettings();
 
     final customSettings = CustomAlarmSettings(
@@ -345,7 +348,6 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                         .copyWith(color: Colors.redAccent),
                   ),
                 ),
-              const SizedBox(),
             ],
           ),
         ),
