@@ -6,7 +6,7 @@ import 'package:arise_alarm_app/pages/edit_alarm.dart';
 import 'package:arise_alarm_app/pages/ring_screen.dart';
 import 'package:arise_alarm_app/utils/components/filter_popup_menu.dart';
 import 'package:arise_alarm_app/utils/tile.dart';
-import 'package:arise_alarm_app/wrapper/wrap_alarm_settings.dart';
+import 'package:arise_alarm_app/classes/wrap_alarm_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,23 +22,27 @@ class _AlarmPageState extends State<AlarmPage> {
   late List<CustomAlarmSettings> customAlarms = [];
   late List<CustomAlarmSettings> allAlarms = [];
   static StreamSubscription<AlarmSettings>? subscription;
+  late SharedPreferences prefs;
 
   @override
   void initState() {
     super.initState();
     if (Alarm.android) {
-      checkAndroidNotificationPermission();
-      checkAndroidScheduleExactAlarmPermission();
+      _checkPermissions();
     }
-    loadAlarms();
-    subscription ??= Alarm.ringStream.stream.listen(navigateToRingScreen);
+    _initializePreferences();
+    subscription ??= Alarm.ringStream.stream.listen(_navigateToRingScreen);
   }
 
-  Future<void> loadAlarms() async {
-    final prefs = await SharedPreferences.getInstance();
-    final keys = prefs.getKeys().where((key) => key.startsWith('alarm_')).toList();
+  Future<void> _initializePreferences() async {
+    prefs = await SharedPreferences.getInstance();
+    _loadAlarms();
+  }
 
+  Future<void> _loadAlarms() async {
+    final keys = prefs.getKeys().where((key) => key.startsWith('alarm_')).toList();
     final loadedAlarms = <CustomAlarmSettings>[];
+
     for (final key in keys) {
       final jsonString = prefs.getString(key);
       if (jsonString != null) {
@@ -46,7 +50,6 @@ class _AlarmPageState extends State<AlarmPage> {
         DateTime dateTime = DateTime.parse(alarmData['dateTime']);
 
         if (dateTime.isBefore(DateTime.now())) {
-          // Reschedule alarm to the same time on the next day
           dateTime = dateTime.add(Duration(days: 1));
         }
 
@@ -65,6 +68,7 @@ class _AlarmPageState extends State<AlarmPage> {
           alarmSettings: alarmSettings,
           label: alarmData['label'],
           isActive: alarmData['isActive'],
+          activityType: alarmData['activityType']
         );
 
         loadedAlarms.add(customAlarm);
@@ -78,107 +82,87 @@ class _AlarmPageState extends State<AlarmPage> {
     });
   }
 
-  Future<void> checkAndroidNotificationPermission() async {
-    final status = await Permission.notification.status;
+  Future<void> _checkPermissions() async {
+    await Future.wait([
+      _checkPermission(Permission.notification),
+      _checkPermission(Permission.scheduleExactAlarm),
+    ]);
+  }
+
+  Future<void> _checkPermission(Permission permission) async {
+    final status = await permission.status;
     if (status.isDenied) {
-      final res = await Permission.notification.request();
-      print('Notification permission ${res.isGranted ? '' : 'not '}granted');
+      final res = await permission.request();
+      print('${permission.toString()} permission ${res.isGranted ? '' : 'not '}granted');
     }
   }
 
-  Future<void> checkAndroidScheduleExactAlarmPermission() async {
-    final status = await Permission.scheduleExactAlarm.status;
-    if (status.isDenied) {
-      final res = await Permission.scheduleExactAlarm.request();
-      print('Schedule exact alarm permission ${res.isGranted ? '' : 'not'} granted');
-    }
-  }
-
-  Future<void> navigateToRingScreen(AlarmSettings alarmSettings) async {
+    Future<void> _navigateToRingScreen(AlarmSettings alarmSettings) async {
+    print('Navigating to ring screen with alarmSettings: $alarmSettings');
+    final customAlarm = allAlarms.firstWhere((alarm) => alarm.alarmSettings.id == alarmSettings.id);
+    print('Custom alarm found: $customAlarm');
     await Navigator.push(
       context,
       MaterialPageRoute<void>(
         builder: (context) => AlarmRingScreen(
           alarmSettings: alarmSettings,
+          activityType: customAlarm.activityType,
         ),
       ),
     );
-    loadAlarms();
+    print('Returned from ring screen');
+    _loadAlarms();
   }
-
-  Future<void> navigateToAlarmScreen(CustomAlarmSettings? customSettings) async {
+    
+  Future<void> _navigateToAlarmScreen(CustomAlarmSettings? customSettings) async {
     final res = await Navigator.push<bool?>(
       context,
       MaterialPageRoute(
         builder: (context) => AlarmEditScreen(customAlarmSettings: customSettings),
       ),
     );
-    if (res != null && res == true) {
-      // Debugging: Print current alarm settings after update
-      if (customSettings != null) {
-        print("Updated alarm settings: ${customSettings.alarmSettings.dateTime}");
-      }
-      loadAlarms();
+    if (res == true) {
+      _loadAlarms();
     }
   }
 
-  void filterAlarms(String choice) {
+  void _filterAlarms(String choice) {
     setState(() {
-      if (choice == 'Default') {
-        customAlarms = List.from(allAlarms);
-      } else if (choice == 'Active') {
-        customAlarms = allAlarms.where((alarm) => alarm.isActive).toList();
-      }
+      customAlarms = choice == 'Default'
+          ? List.from(allAlarms)
+          : allAlarms.where((alarm) => alarm.isActive).toList();
       customAlarms.sort((a, b) => a.alarmSettings.dateTime.compareTo(b.alarmSettings.dateTime));
     });
   }
 
-  void toggleAlarmSwitch(CustomAlarmSettings customAlarm, bool isActive) async {
+  Future<void> _toggleAlarmSwitch(CustomAlarmSettings customAlarm, bool isActive) async {
     AlarmSettings alarmSettings = customAlarm.alarmSettings;
+
     if (isActive) {
       if (alarmSettings.dateTime.isBefore(DateTime.now())) {
-        alarmSettings = AlarmSettings(
-          id: alarmSettings.id,
+        alarmSettings = alarmSettings.copyWith(
           dateTime: alarmSettings.dateTime.add(Duration(days: 1)),
-          loopAudio: alarmSettings.loopAudio,
-          vibrate: alarmSettings.vibrate,
-          volume: alarmSettings.volume,
-          assetAudioPath: alarmSettings.assetAudioPath,
-          notificationTitle: alarmSettings.notificationTitle,
-          notificationBody: alarmSettings.notificationBody,
         );
       }
 
       final success = await Alarm.set(alarmSettings: alarmSettings);
-      if (success) {
-        print("Alarm set successfully.");
-      } else {
-        print("Failed to set the alarm.");
-      }
+      print(success ? "Alarm set successfully." : "Failed to set the alarm.");
     } else {
       final success = await Alarm.stop(alarmSettings.id);
-      if (success) {
-        print("Alarm stopped successfully.");
-      } else {
-        print("Failed to stop the alarm.");
-      }
+      print(success ? "Alarm stopped successfully." : "Failed to stop the alarm.");
     }
-    // =====================================================
-    //
-    // Update SharedPreferences with the latest settings
-    //
-    // =====================================================
 
-    final prefs = await SharedPreferences.getInstance();
-    final alarmData = customAlarmSettingsToMap(CustomAlarmSettings(
+    final alarmData = _customAlarmSettingsToMap(CustomAlarmSettings(
       alarmSettings: alarmSettings,
       label: customAlarm.label,
       isActive: isActive,
+      activityType: customAlarm.activityType
     ));
     await prefs.setString('alarm_${alarmSettings.id}', jsonEncode(alarmData));
-    loadAlarms();
+    setState(() {
+      _loadAlarms();
+    });
   }
-  
 
   @override
   void dispose() {
@@ -192,7 +176,7 @@ class _AlarmPageState extends State<AlarmPage> {
       appBar: AppBar(
         actions: [
           FilterPopupMenu(
-            onSelected: filterAlarms,
+            onSelected: _filterAlarms,
             options: ['Default', 'Active'],
           ),
         ],
@@ -211,14 +195,14 @@ class _AlarmPageState extends State<AlarmPage> {
                       minute: alarm.alarmSettings.dateTime.minute,
                     ).format(context),
                     isSwitched: alarm.isActive,
-                    onToggleSwitch: (isActive) => toggleAlarmSwitch(alarm, isActive),
-                    onPressed: () => navigateToAlarmScreen(alarm),
+                    onToggleSwitch: (isActive) => _toggleAlarmSwitch(alarm, isActive),
+                    onPressed: () => _navigateToAlarmScreen(alarm),
                     label: alarm.label,
                     dateTime: alarm.alarmSettings.dateTime,
+                    activityType: alarm.activityType,
                     onDismissed: () async {
-                      final prefs = await SharedPreferences.getInstance();
                       await prefs.remove('alarm_${alarm.alarmSettings.id}');
-                      loadAlarms();
+                      _loadAlarms();
                     },
                   );
                 },
@@ -237,7 +221,7 @@ class _AlarmPageState extends State<AlarmPage> {
           children: [
             FloatingActionButton(
               shape: CircleBorder(side: BorderSide.none, eccentricity: 0.0),
-              onPressed: () => navigateToAlarmScreen(null),
+              onPressed: () => _navigateToAlarmScreen(null),
               child: const Icon(Icons.add, size: 33),
             ),
           ],
@@ -247,10 +231,7 @@ class _AlarmPageState extends State<AlarmPage> {
     );
   }
 
-
-
-
-  Map<String, dynamic> customAlarmSettingsToMap(CustomAlarmSettings customSettings) {
+  Map<String, dynamic> _customAlarmSettingsToMap(CustomAlarmSettings customSettings) {
     return {
       'id': customSettings.alarmSettings.id,
       'dateTime': customSettings.alarmSettings.dateTime.toIso8601String(),
@@ -260,6 +241,7 @@ class _AlarmPageState extends State<AlarmPage> {
       'assetAudioPath': customSettings.alarmSettings.assetAudioPath,
       'label': customSettings.label,
       'isActive': customSettings.isActive,
+      'activityType': customSettings.activityType,
     };
   }
 }

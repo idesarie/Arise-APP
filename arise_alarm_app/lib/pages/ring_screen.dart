@@ -1,14 +1,17 @@
 import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
+import 'package:arise_alarm_app/pages/activities_screen/math_challenge_screen.dart';
 
 class AlarmRingScreen extends StatelessWidget {
   const AlarmRingScreen({
+    required this.activityType,
     required this.alarmSettings,
     super.key,
   });
 
   final AlarmSettings alarmSettings;
-
+  final String activityType;
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,18 +49,32 @@ class AlarmRingScreen extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-                RawMaterialButton(
-                  onPressed: () {
-                    Alarm.stop(alarmSettings.id).then((_) {
-                      Navigator.pop(context);
-                    });
-                  },
-                  child: Text(
-                    'Stop',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
               ],
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (activityType == "Math") {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MathChallengeScreen(
+                        onSuccess: () {
+                          Alarm.stop(alarmSettings.id).then((_) {
+                            Navigator.pop(context);
+                          });
+                        },
+                      ),
+                    ),
+                  );
+                } else {
+                  Alarm.stop(alarmSettings.id).then((_) {
+                    Navigator.pop(context);
+                  });
+                }
+              },
+              child: Text(
+                activityType == "None" ? "Stop" : activityType,  // Dynamic button label
+              ),
             ),
           ],
         ),

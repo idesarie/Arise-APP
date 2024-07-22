@@ -2,12 +2,14 @@ import 'package:alarm/model/alarm_settings.dart';
 
 class CustomAlarmSettings {
   final AlarmSettings alarmSettings;
-  String label;
-  bool isActive;
+  final String label;
+  final bool isActive;
+  final String activityType;
 
   CustomAlarmSettings({
     required this.alarmSettings,
-    this.label = '',
-    this.isActive = false,
+    required this.label,
+    required this.isActive,
+    required this.activityType,
   });
 }
