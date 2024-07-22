@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:alarm/alarm.dart';
 import 'package:arise_alarm_app/pages/sound_selection.dart';
-import 'package:arise_alarm_app/wrapper/wrap_alarm_settings.dart';
+import 'package:arise_alarm_app/classes/wrap_alarm_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,7 +26,10 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   late bool vibrate;
   late double volume;
   late String assetAudio;
-  late String label = 'Alarm';
+  late String label;
+  String activityType = 'None';
+
+  final List<String> activityOptions = ['None', 'Math'];
 
   final List<Map<String, String>> soundOptions = [
     {'value': 'assets/sounds/marimba.mp3', 'label': 'Marimba'},
@@ -55,7 +58,8 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
       vibrate = true;
       volume = 0.5;
       assetAudio = 'assets/sounds/marimba.mp3';
-      label = '';
+      label = 'Alarm';
+      activityType = 'None';
     } else {
       // Editing an existing alarm
       final settings = widget.customAlarmSettings!.alarmSettings;
@@ -65,10 +69,11 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
       volume = settings.volume ?? 0.5;
       assetAudio = settings.assetAudioPath;
       label = widget.customAlarmSettings!.label;
+      activityType = widget.customAlarmSettings!.activityType;
     }
   }
 
-   String getDay() {
+  String getDay() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final difference = selectedDateTime.difference(today).inDays;
@@ -84,7 +89,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
         return 'In $difference days';
     }
   }
-  
+
   Future<void> pickTime() async {
     final res = await showTimePicker(
       initialTime: TimeOfDay.fromDateTime(selectedDateTime),
@@ -143,6 +148,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
       notificationTitle: 'Arise',
       notificationBody: 'Your alarm is ringing',
       enableNotificationOnKill: Platform.isIOS,
+      androidFullScreenIntent: true
     );
     return alarmSettings;
   }
@@ -151,14 +157,15 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     if (loading) return;
     setState(() => loading = true);
     if (label.isEmpty) {
-    label = 'Alarm';
-  }
+      label = 'Alarm';
+    }
     final settings = buildAlarmSettings();
 
     final customSettings = CustomAlarmSettings(
       alarmSettings: settings,
       label: label,
       isActive: true,
+      activityType: activityType,
     );
 
     final prefs = await SharedPreferences.getInstance();
@@ -192,7 +199,6 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     }
   }
 
-//Detlete alarm
   Future<void> deleteAlarm() async {
     if (widget.customAlarmSettings != null) {
       final id = widget.customAlarmSettings!.alarmSettings.id;
@@ -207,7 +213,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     }
   }
 
-   Map<String, dynamic> customAlarmSettingsToMap(CustomAlarmSettings customSettings) {
+  Map<String, dynamic> customAlarmSettingsToMap(CustomAlarmSettings customSettings) {
     return {
       'id': customSettings.alarmSettings.id,
       'dateTime': customSettings.alarmSettings.dateTime.toIso8601String(),
@@ -217,14 +223,51 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
       'assetAudioPath': customSettings.alarmSettings.assetAudioPath,
       'label': customSettings.label,
       'isActive': customSettings.isActive,
+      'activityType': customSettings.activityType,
     };
   }
 
+  Future<void> _showLabelDialog() async {
+    final TextEditingController _textController = TextEditingController(text: label);
+
+    await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Enter Alarm Label'),
+          content: TextField(
+            controller: _textController,
+            maxLength: 20, // Limit the length of the text input
+            decoration: InputDecoration(hintText: 'Alarm Label'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  label = _textController.text;
+                });
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.customAlarmSettings == null ? 'Add Alarm' : 'Edit Alarm')),
+      appBar: AppBar(
+        title: Text(widget.customAlarmSettings == null ? 'Add Alarm' : 'Edit Alarm'),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
@@ -252,14 +295,21 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                   ),
                 ),
               ),
-              TextField(
-                decoration: InputDecoration(labelText: 'Alarm Label'),
-                onChanged: (value) {
-                  setState(() {
-                    label = value;
-                  });
-                },
-                controller: TextEditingController(text: label),
+              GestureDetector(
+                onTap: _showLabelDialog, // Open dialog on tap
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Label',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      label.isEmpty ? 'Alarm' : label, // Show default text if label is empty
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -271,6 +321,26 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                   Switch(
                     value: loopAudio,
                     onChanged: (value) => setState(() => loopAudio = value),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Activity', style: Theme.of(context).textTheme.titleMedium),
+                  DropdownButton<String>(
+                    value: activityType,
+                    onChanged: (value) {
+                      setState(() {
+                        activityType = value!;
+                      });
+                    },
+                    items: activityOptions.map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
                   ),
                 ],
               ),

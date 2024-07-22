@@ -8,6 +8,7 @@ class AlarmTile extends StatefulWidget {
     required this.onToggleSwitch,
     required this.label,
     required this.dateTime,
+    required this.activityType,
     super.key,
     this.onDismissed,
   });
@@ -16,6 +17,7 @@ class AlarmTile extends StatefulWidget {
   final bool isSwitched;
   final String label;
   final DateTime dateTime;
+  final String activityType;
   final void Function(bool) onToggleSwitch;
   final void Function() onPressed;
   final void Function()? onDismissed;
@@ -99,7 +101,14 @@ class _AlarmTileState extends State<AlarmTile> {
                 ),
               ),
               Text(
-                widget.label,
+                "${widget.label}",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+               Text(
+                "${widget.activityType}",
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,

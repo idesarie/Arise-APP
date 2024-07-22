@@ -1,5 +1,7 @@
 
 import 'package:alarm/alarm.dart';
+import 'package:arise_alarm_app/pages/settings_page.dart';
+import 'package:arise_alarm_app/pages/sleep_page.dart';
 import 'package:arise_alarm_app/utils/splashscreen.dart';
 import 'package:flutter/material.dart';
 
@@ -18,7 +20,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
+      theme: ThemeData.light(),
       home: const SplashScreen(),
     );
   }

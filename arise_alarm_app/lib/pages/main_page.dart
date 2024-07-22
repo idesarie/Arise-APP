@@ -18,7 +18,7 @@ class _MainPageState extends State<MainPage> {
   final pages = [
     const AlarmPage(),
     const SleepPage(),
-    const ReportPage(),
+    // const ReportPage(),
     const SettingsPage(),
   ];
 
@@ -31,7 +31,7 @@ class _MainPageState extends State<MainPage> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.alarm), label: "Home"),
           NavigationDestination(icon: Icon(Icons.bed_rounded), label: "Sleep"),
-          NavigationDestination(icon: Icon(Icons.summarize_outlined), label: "Report"),
+          // NavigationDestination(icon: Icon(Icons.summarize_outlined), label: "Report"),
           NavigationDestination(icon: Icon(Icons.settings), label: "Settings"),
         ],
       ),
